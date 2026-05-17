@@ -46,14 +46,14 @@ src/
 
 ## 3. 핵심 설계 결정 (변경 금지)
 
-| 결정 | 내용 |
-|------|------|
-| **Items 저장 위치** | Notion DB 속성 **아님** — 페이지 본문 4열 table 블록에서 파싱 |
-| **Notion SDK 버전** | v5: `notion.dataSources.query({ data_source_id })` 사용 |
-| **접근 제어** | `getInvoiceBySlug` 쿼리에 `IsPublic=true` 필터 포함 — 페이지 컴포넌트에서 재확인 불필요 |
-| **InvoiceNumber** | `title` 또는 `rich_text` 두 타입 모두 처리: `readTitle() || readText()` |
-| **PDF 생성** | `window.print()` 전용, 외부 라이브러리 사용 금지 |
-| **ISR 캐시** | `revalidate = 60` (page.tsx 최상단 상수) |
+| 결정                | 내용                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------- | --- | ----------- |
+| **Items 저장 위치** | Notion DB 속성 **아님** — 페이지 본문 4열 table 블록에서 파싱                           |
+| **Notion SDK 버전** | v5: `notion.dataSources.query({ data_source_id })` 사용                                 |
+| **접근 제어**       | `getInvoiceBySlug` 쿼리에 `IsPublic=true` 필터 포함 — 페이지 컴포넌트에서 재확인 불필요 |
+| **InvoiceNumber**   | `title` 또는 `rich_text` 두 타입 모두 처리: `readTitle()                                |     | readText()` |
+| **PDF 생성**        | `window.print()` 전용, 외부 라이브러리 사용 금지                                        |
+| **ISR 캐시**        | `revalidate = 60` (page.tsx 최상단 상수)                                                |
 
 ---
 
@@ -136,10 +136,10 @@ type LineItem = { id: any; name: string }
 
 ## 10. 환경변수 규칙
 
-| 변수명 | 위치 | 용도 |
-|--------|------|------|
-| `NOTION_API_KEY` | `.env.local` | Notion API 인증 |
-| `NOTION_DATABASE_ID` | `.env.local` | 견적서 DB ID |
+| 변수명               | 위치         | 용도            |
+| -------------------- | ------------ | --------------- |
+| `NOTION_API_KEY`     | `.env.local` | Notion API 인증 |
+| `NOTION_DATABASE_ID` | `.env.local` | 견적서 DB ID    |
 
 - 환경변수 직접 접근(`process.env.XXX`)은 `src/lib/notion.ts`와 `src/lib/env.ts`에서만 허용
 - 새 환경변수 추가 시: `.env.local` + `.env.example` + `src/lib/env.ts` Zod 스키마 **동시 수정**
@@ -205,37 +205,41 @@ npm run typecheck    # TypeScript 타입 검사만
 
 ## 14. 금지 행동 목록
 
-| 금지 | 이유 |
-|------|------|
-| `notion.databases.query()` 사용 | v5에서 `dataSources.query()` 사용 |
-| server-only 모듈을 Client Component에서 import | 빌드 에러 발생 |
-| Items를 Notion DB 속성으로 저장 | 페이지 본문 table 블록 파싱이 설계 결정 |
-| `src/components/ui/` 직접 수정 | shadcn CLI로만 관리 |
-| `tailwind.config.ts` 생성 | TailwindCSS v4는 설정 파일 불필요 |
-| `any` 타입 사용 | TypeScript 엄격 모드 위반 |
-| `var` 사용 | const/let 사용 |
-| 인라인 포맷 함수 작성 | `src/lib/format.ts`에 추가 |
-| 페이지 컴포넌트에서 `isPublic` 재확인 | 쿼리 레벨에서 이미 필터링됨 |
-| PDF 생성 외부 라이브러리 도입 | `window.print()` 전용 |
-| `--no-verify`로 husky 우회 | 코드 품질 보장 정책 위반 |
+| 금지                                           | 이유                                    |
+| ---------------------------------------------- | --------------------------------------- |
+| `notion.databases.query()` 사용                | v5에서 `dataSources.query()` 사용       |
+| server-only 모듈을 Client Component에서 import | 빌드 에러 발생                          |
+| Items를 Notion DB 속성으로 저장                | 페이지 본문 table 블록 파싱이 설계 결정 |
+| `src/components/ui/` 직접 수정                 | shadcn CLI로만 관리                     |
+| `tailwind.config.ts` 생성                      | TailwindCSS v4는 설정 파일 불필요       |
+| `any` 타입 사용                                | TypeScript 엄격 모드 위반               |
+| `var` 사용                                     | const/let 사용                          |
+| 인라인 포맷 함수 작성                          | `src/lib/format.ts`에 추가              |
+| 페이지 컴포넌트에서 `isPublic` 재확인          | 쿼리 레벨에서 이미 필터링됨             |
+| PDF 생성 외부 라이브러리 도입                  | `window.print()` 전용                   |
+| `--no-verify`로 husky 우회                     | 코드 품질 보장 정책 위반                |
 
 ---
 
 ## 15. AI 의사결정 기준
 
 ### 새 기능이 서버/클라이언트 컴포넌트 중 어디에 속하는가?
+
 - Notion API, 데이터 fetch → **Server Component** (기본값)
 - `window`, `document`, onClick, useState → **Client Component** (`"use client"` 추가)
 
 ### Notion 속성 타입을 알 수 없을 때?
+
 - `readText` → `rich_text` 타입
 - `readTitle` → `title` 타입 (DB primary 필드)
 - InvoiceNumber처럼 불확실하면 `readTitle(page, prop) || readText(page, prop)` 패턴 적용
 
 ### 새 포맷/계산 로직 위치?
+
 - 화면 표시 포맷 → `src/lib/format.ts`
 - 금액 계산 (subtotal, tax, total) → `src/lib/invoice.ts`의 `mapPageToInvoice`
 
 ### 컴포넌트를 어디에 배치할 것인가?
+
 - 견적서 전용 UI → `src/components/invoice/`
 - 재사용 가능한 일반 UI → shadcn CLI로 추가 후 `src/components/ui/`
