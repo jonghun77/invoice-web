@@ -11,16 +11,16 @@
 
 ```
 1. [발행자] 노션 DB에 견적서 데이터 입력
-   ↓ IsPublic = true 로 설정
+   ↓ 상태 = "승인" 으로 설정
 
-2. [발행자] /invoice/[slug] URL을 고객에게 전달 (이메일·메신저 등)
+2. [발행자] /invoice/[노션 페이지 ID] URL을 고객에게 전달 (이메일·메신저 등)
    ↓
 
 3. [수신자] URL 접속
-   ↓ slug 유효성 검사
-   IsPublic = false  → 접근 불가 페이지 (404/비공개 안내)
-   IsPublic = true   → 견적서 웹 뷰 페이지
-   slug 없음         → 404 페이지
+   ↓ 페이지 ID 유효성 검사
+   상태 ≠ "승인"  → 접근 불가 페이지 (404/비공개 안내)
+   상태 = "승인"  → 견적서 웹 뷰 페이지
+   ID 없음        → 404 페이지
    ↓
 
 4. [수신자] 견적서 웹 뷰 페이지에서 내용 확인
@@ -38,10 +38,10 @@
 
 | ID | 기능명 | 설명 | MVP 필수 이유 | 관련 페이지 |
 |----|--------|------|--------------|------------|
-| **F001** | 노션 DB 견적서 조회 | slug(UUID)로 노션 API를 호출해 견적서 데이터를 가져온다 | 모든 기능의 데이터 소스 | 견적서 뷰 페이지 |
+| **F001** | 노션 DB 견적서 조회 | 노션 페이지 ID로 `pages.retrieve`를 호출해 견적서 데이터를 가져온다. 페이지 ID는 노션이 자동 생성하는 UUID라 별도 Slug 속성이 불필요하다 | 모든 기능의 데이터 소스 | 견적서 뷰 페이지 |
 | **F002** | 견적서 웹 뷰 렌더링 | 발행자 정보·수신자 정보·품목 테이블·합계·세금·최종금액·비고를 화면에 출력한다 | 서비스의 핵심 가치 전달 | 견적서 뷰 페이지 |
 | **F003** | PDF 다운로드 | "PDF 다운로드" 버튼 클릭 시 `window.print()`를 호출해 브라우저 인쇄 다이얼로그를 연다 | 고객이 견적서를 저장·출력할 수 있어야 함 | 견적서 뷰 페이지 |
-| **F004** | 공개/비공개 접근 제어 | 노션 `IsPublic` 속성이 false이거나 slug가 존재하지 않으면 접근을 차단한다 | 미확정·삭제된 견적서가 외부에 노출되지 않아야 함 | 견적서 뷰 페이지, 접근 불가 페이지 |
+| **F004** | 공개/비공개 접근 제어 | 노션 `상태` 속성이 `"승인"`이 아니거나 페이지 ID가 존재하지 않으면 접근을 차단한다 | 미확정·거절된 견적서가 외부에 노출되지 않아야 함 | 견적서 뷰 페이지, 접근 불가 페이지 |
 
 ### 2. MVP 이후 기능 (제외)
 
@@ -57,8 +57,8 @@
 
 ```
 공개 URL (인증 없음)
-├── /invoice/[slug]   → 견적서 뷰 페이지  (F001, F002, F003, F004)
-└── /invoice/[slug] 접근 차단 시
+├── /invoice/[pageId]   → 견적서 뷰 페이지  (F001, F002, F003, F004)
+└── /invoice/[pageId] 접근 차단 시
     └── 접근 불가 페이지              (F004)
 ```
 
@@ -75,10 +75,10 @@
 | 항목 | 내용 |
 |------|------|
 | **역할** | 노션 DB의 견적서 데이터를 웹으로 렌더링하는 핵심 페이지 |
-| **진입 경로** | 발행자가 공유한 `/invoice/[slug]` URL 직접 접속 |
+| **진입 경로** | 발행자가 공유한 `/invoice/[노션 페이지 ID]` URL 직접 접속 |
 | **사용자 행동** | 견적서 내용 전체를 스크롤하며 확인하고, "PDF 다운로드" 버튼을 클릭해 PDF를 저장한다 |
-| **주요 기능** | • slug로 노션 API 호출 및 데이터 파싱 (F001)<br>• IsPublic = false이면 접근 불가 페이지로 교체 렌더링 (F004)<br>• 발행자 정보 섹션 출력 (회사명, 담당자, 연락처) (F002)<br>• 수신자 정보 섹션 출력 (고객명, 연락처) (F002)<br>• 품목 테이블 출력 (품목명, 수량, 단가, 금액) (F002)<br>• 합계 / 세금(부가세) / 최종금액 출력 (F002)<br>• 비고 텍스트 출력 (F002)<br>• **"PDF 다운로드"** 버튼 → `window.print()` 실행, 인쇄 시 버튼 숨김 (F003) |
-| **다음 이동** | IsPublic = false / slug 없음 → 접근 불가 페이지 표시, PDF 저장 → 브라우저 완료 처리 |
+| **주요 기능** | • 페이지 ID로 노션 `pages.retrieve` 호출 및 데이터 파싱 (F001)<br>• `상태 ≠ "승인"`이면 접근 불가 페이지로 교체 렌더링 (F004)<br>• 발행자 정보 섹션 출력 (회사명, 담당자, 연락처) (F002)<br>• 수신자 정보 섹션 출력 (고객명, 연락처) (F002)<br>• 품목 테이블 출력 (품목명, 수량, 단가, 금액) (F002)<br>• 합계 / 세금(부가세) / 최종금액 출력 (F002)<br>• 비고 텍스트 출력 (F002)<br>• **"PDF 다운로드"** 버튼 → `window.print()` 실행, 인쇄 시 버튼 숨김 (F003) |
+| **다음 이동** | 상태 ≠ 승인 / 페이지 없음 → 접근 불가 페이지 표시, PDF 저장 → 브라우저 완료 처리 |
 
 ---
 
@@ -89,7 +89,7 @@
 | 항목 | 내용 |
 |------|------|
 | **역할** | 비공개 또는 존재하지 않는 견적서에 접근 시 사용자에게 안내 메시지를 보여주는 페이지 |
-| **진입 경로** | 견적서 뷰 페이지에서 IsPublic = false 또는 slug 미조회 시 자동 렌더링 |
+| **진입 경로** | 견적서 뷰 페이지에서 상태 ≠ 승인 또는 페이지 미조회 시 자동 렌더링 |
 | **사용자 행동** | 안내 메시지를 확인한다. 추가 액션 없음. |
 | **주요 기능** | • "이 견적서는 비공개이거나 존재하지 않습니다" 안내 문구 표시 (F004)<br>• HTTP 상태코드 404 반환 |
 | **다음 이동** | 없음 (종단 페이지) |
@@ -98,23 +98,37 @@
 
 ## 데이터 모델
 
-### 노션 DB 속성 매핑
+### Invoices DB 속성 매핑
 
-| 노션 속성명 | 노션 타입 | 매핑 필드 | 설명 |
+> 기존 한글 속성명은 그대로 유지하고, 신규 추가 속성은 영문으로 작성한다.
+
+| 노션 속성명 | 노션 타입 | 매핑 필드 | 비고 |
 |------------|----------|-----------|------|
-| `Slug` | rich_text | `invoice.slug` | UUID, URL에 사용 |
-| `InvoiceNumber` | rich_text | `invoice.invoiceNumber` | 견적서 번호 |
-| `IssuedAt` | date | `invoice.issuedAt` | 발행일 |
-| `DueDate` | date | `invoice.dueDate` | 유효기한 |
-| `IssuerName` | rich_text | `invoice.issuer.name` | 발행자 회사명 |
-| `IssuerContact` | rich_text | `invoice.issuer.contact` | 발행자 연락처 |
-| `IssuerEmail` | email | `invoice.issuer.email` | 발행자 이메일 |
-| `ClientName` | rich_text | `invoice.client.name` | 수신자(고객) 이름 |
-| `ClientContact` | rich_text | `invoice.client.contact` | 수신자 연락처 |
-| `Items` | rich_text (JSON 문자열) | `invoice.items` | 품목 배열, JSON 직렬화 [결정 필요: 별도 관계형 DB 사용 여부] |
-| `TaxRate` | number | `invoice.taxRate` | 세율 (예: 0.1 = 10%) |
-| `Note` | rich_text | `invoice.note` | 비고 |
-| `IsPublic` | checkbox | `invoice.isPublic` | 공개 여부 |
+| *(페이지 ID)* | — | `invoice.slug` | 노션이 자동 생성하는 UUID. 별도 속성 불필요 |
+| `견적서 번호` | title | `invoice.invoiceNumber` | 수동 입력 (`INV-YYYY-NNN` 형식 권장) |
+| `발행일` | date | `invoice.issuedAt` | |
+| `유효기간` | date | `invoice.dueDate` | |
+| `상태` | status | `invoice.isPublic` | `승인` = 공개, `대기`/`거절` = 비공개 |
+| `클라이언트명` | rich_text | `invoice.client.name` | |
+| `항목` | relation → Items DB | `invoice.items` | Items DB와 관계형으로 연결 |
+| `IssuerName` | rich_text | `invoice.issuer.name` | **추가 필요** |
+| `IssuerContact` | rich_text | `invoice.issuer.contact` | **추가 필요** |
+| `IssuerEmail` | email | `invoice.issuer.email` | **추가 필요** |
+| `ClientContact` | rich_text | `invoice.client.contact` | **추가 필요** (선택) |
+| `TaxRate` | number | `invoice.taxRate` | **추가 필요** (0.1 = 10%) |
+| `Note` | rich_text | `invoice.note` | **추가 필요** (선택) |
+
+### Items DB 속성 매핑
+
+> Invoices DB와 관계형으로 연결된 별도 테이블. `NOTION_ITEMS_DATABASE_ID`로 참조.
+
+| 노션 속성명 | 노션 타입 | 매핑 필드 |
+|------------|----------|-----------|
+| `항목명` | title | `lineItem.name` |
+| `수량` | number | `lineItem.quantity` |
+| `단가` | number | `lineItem.unitPrice` |
+| `금액` | number | `lineItem.amount` (`금액 = 0`이면 `수량 × 단가`로 계산) |
+| `Invoices` | relation → Invoices DB | (역방향 관계) |
 
 ### TypeScript 인터페이스
 
@@ -131,6 +145,7 @@ interface Client {
 }
 
 interface LineItem {
+  id: string;         // 노션 Items DB 페이지 ID
   name: string;       // 품목명
   quantity: number;   // 수량
   unitPrice: number;  // 단가 (원)
@@ -138,8 +153,8 @@ interface LineItem {
 }
 
 interface Invoice {
-  id: string;           // 노션 페이지 ID
-  slug: string;         // UUID, URL용
+  id: string;           // 노션 Invoices DB 페이지 ID
+  slug: string;         // 노션 페이지 ID (= id, URL용)
   invoiceNumber: string;
   issuedAt: string;     // ISO 8601
   dueDate: string;      // ISO 8601
@@ -151,7 +166,7 @@ interface Invoice {
   tax: number;          // 세금 = subtotal * taxRate
   total: number;        // 최종금액 = subtotal + tax
   note?: string;        // 비고
-  isPublic: boolean;    // 공개 여부
+  isPublic: boolean;    // 상태 === "승인"
 }
 ```
 
@@ -162,15 +177,16 @@ interface Invoice {
 ### RSC 페이지 — 견적서 웹 뷰
 
 ```
-GET /invoice/[slug]
+GET /invoice/[pageId]
 ```
 
 - **렌더링 방식**: React Server Component (SSR)
 - **캐시 전략**: `revalidate: 60` (60초마다 재검증)
 - **처리 흐름**:
-  1. `slug` 파라미터로 노션 DB 쿼리 (`filter: Slug = slug`)
-  2. 결과 없음 또는 `isPublic = false` → `notFound()` 호출
-  3. 데이터 파싱 후 `<InvoicePage>` 컴포넌트 렌더링
+  1. `pageId`로 `notion.pages.retrieve({ page_id: pageId })` 호출
+  2. 상태 ≠ `"승인"` 또는 페이지 없음 → `notFound()` 호출
+  3. Items DB를 관계 필터로 쿼리해 LineItem[] 파싱
+  4. 데이터 파싱 후 `<InvoiceView>` 컴포넌트 렌더링
 
 ```ts
 // src/app/invoice/[slug]/page.tsx
@@ -182,11 +198,9 @@ export default async function InvoicePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const invoice = await getInvoiceBySlug(slug);
+  const invoice = await getInvoiceBySlug(slug); // slug = 노션 페이지 ID
 
-  if (!invoice || !invoice.isPublic) {
-    notFound();
-  }
+  if (!invoice) notFound();
 
   return <InvoiceView invoice={invoice} />;
 }
@@ -197,113 +211,11 @@ export default async function InvoicePage({
 ### Route Handler — JSON API
 
 ```
-GET /api/invoice/[slug]
+GET /api/invoice/[pageId]
 ```
 
-- **용도**: 클라이언트 사이드 fetch 또는 외부 연동 [결정 필요: MVP에 포함할지 RSC만으로 충분한지]
-- **인증**: 없음 (UUID slug 추측 어려움에 의존)
-
-**성공 응답 (200)**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "abc123",
-    "slug": "550e8400-e29b-41d4-a716-446655440000",
-    "invoiceNumber": "INV-2024-001",
-    "issuedAt": "2024-01-15T00:00:00.000Z",
-    "dueDate": "2024-02-15T00:00:00.000Z",
-    "issuer": {
-      "name": "홍길동 디자인",
-      "contact": "010-1234-5678",
-      "email": "hong@example.com"
-    },
-    "client": {
-      "name": "(주)클라이언트사",
-      "contact": "02-9876-5432"
-    },
-    "items": [
-      {
-        "name": "웹사이트 디자인",
-        "quantity": 1,
-        "unitPrice": 1500000,
-        "amount": 1500000
-      },
-      {
-        "name": "로고 디자인",
-        "quantity": 2,
-        "unitPrice": 300000,
-        "amount": 600000
-      }
-    ],
-    "subtotal": 2100000,
-    "taxRate": 0.1,
-    "tax": 210000,
-    "total": 2310000,
-    "note": "계약금 50% 선입금 후 작업 시작",
-    "isPublic": true
-  }
-}
-```
-
-**실패 응답 — 존재하지 않거나 비공개 (404)**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INVOICE_NOT_FOUND",
-    "message": "견적서를 찾을 수 없거나 비공개 상태입니다."
-  }
-}
-```
-
-**실패 응답 — 노션 API 오류 (500)**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "NOTION_API_ERROR",
-    "message": "노션 데이터를 가져오는 중 오류가 발생했습니다."
-  }
-}
-```
-
----
-
-## 개발 단계
-
-### Phase 1 — 노션 연동 & 데이터 파이프라인
-
-- [ ] 노션 통합(Integration) 생성 및 `NOTION_API_KEY`, `NOTION_DATABASE_ID` 환경 변수 설정
-- [ ] `@notionhq/client` 설치 및 클라이언트 초기화 (`src/lib/notion.ts`)
-- [ ] 노션 DB에 위 속성 스키마 구성
-- [ ] `getInvoiceBySlug(slug: string): Promise<Invoice | null>` 함수 구현
-- [ ] 노션 응답 → `Invoice` 인터페이스 파싱 및 타입 변환 유틸 작성
-- [ ] `Items` JSON 파싱 처리 [결정 필요: 노션 rich_text JSON vs 별도 테이블 구조]
-
-### Phase 2 — 견적서 웹 뷰 UI
-
-- [ ] `src/app/invoice/[slug]/page.tsx` RSC 페이지 구현
-- [ ] `src/app/invoice/[slug]/not-found.tsx` 접근 불가 페이지 구현
-- [ ] `<InvoiceView>` 컴포넌트 구현
-  - `<IssuerSection>` — 발행자 정보
-  - `<ClientSection>` — 수신자 정보
-  - `<ItemsTable>` — 품목 테이블
-  - `<SummarySection>` — 합계·세금·최종금액
-  - `<NoteSection>` — 비고
-- [ ] 견적서 레이아웃 스타일링 (TailwindCSS v4 + shadcn/ui new-york)
-- [ ] 인쇄 시 숨길 요소 `@media print` CSS 처리
-
-### Phase 3 — PDF 다운로드 & 배포
-
-- [ ] "PDF 다운로드" 버튼 컴포넌트 구현 (`window.print()` 호출)
-- [ ] `@media print` CSS — 버튼 숨김, 여백·폰트 인쇄 최적화
-- [ ] `src/app/api/invoice/[slug]/route.ts` Route Handler 구현 (선택)
-- [ ] Vercel 환경 변수 설정 (`NOTION_API_KEY`, `NOTION_DATABASE_ID`)
-- [ ] Vercel 배포 및 공개 URL 동작 검증
+- **용도**: 클라이언트 사이드 fetch 또는 외부 연동용 JSON 엔드포인트
+- **인증**: 없음 (노션 페이지 ID의 UUID 추측 불가에 의존)
 
 ---
 
@@ -323,7 +235,9 @@ GET /api/invoice/[slug]
 
 ### 노션 연동
 
-- **`@notionhq/client`** — 노션 공식 SDK, DB 쿼리 및 페이지 조회
+- **`@notionhq/client` v5** — 노션 공식 SDK
+  - DB 쿼리: `notion.dataSources.query({ data_source_id })` (`databases.query` v5에서 제거됨)
+  - 단건 조회: `notion.pages.retrieve({ page_id })`
 
 ### PDF 생성
 
@@ -333,29 +247,29 @@ GET /api/invoice/[slug]
 
 - **Vercel** — Next.js 15 최적화 배포, 환경 변수 관리
 
-### 설치 명령어
-
-```bash
-npm install @notionhq/client
-```
-
 ---
 
 ## 환경 변수
 
 ```bash
-# .env.local
+# .env
 NOTION_API_KEY=secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-NOTION_DATABASE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+NOTION_ITEMS_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx   # Items DB ID
+NOTION_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx          # Invoices DB ID (선택, 현재 미사용)
 ```
+
+> `.gitignore`에 `.env*`가 설정되어 있어 `.env` 파일은 git에 커밋되지 않는다.
 
 ---
 
-## 미결 사항 (결정 필요)
+## 설계 결정 사항
 
-| 태그 | 항목 | 옵션 |
+| 항목 | 결정 | 근거 |
 |------|------|------|
-| [결정 필요] | 품목(Items) 저장 방식 | A) 노션 rich_text에 JSON 문자열로 저장 (단순, 편집 불편) / B) 노션 관계형 DB로 별도 Items 테이블 구성 (정규화, 복잡도 증가) |
-| [결정 필요] | Route Handler 포함 여부 | RSC 단독으로 충분하면 `/api/invoice/[slug]` 생략 가능 |
-| [결정 필요] | 견적서 번호 형식 | 예: `INV-2024-001` — 노션에서 수동 입력 vs 자동 채번 |
-| [결정 필요] | 금액 단위 | 원화(KRW) 단독 표시 vs 통화 필드 추가 |
+| **품목 저장 방식** | 별도 관계형 DB (Items DB) | 노션에서 이미 이 구조로 설계됨 |
+| **Slug 생성 방식** | 노션 페이지 ID 자동 사용 | 페이지 생성 시 UUID가 자동 부여되어 별도 Slug 속성 불필요 |
+| **공개/비공개 제어** | `상태` Status 필드 사용 (`승인` = 공개) | 발행자가 이미 `대기/거절/승인` 워크플로우로 설계함 |
+| **SDK v5 API** | `dataSources.query` + `pages.retrieve` | v5에서 `databases.query` 제거됨 |
+| **속성명 언어** | 기존 한글 유지, 신규 추가는 영문 | 노션 편의성 유지 |
+| **금액 단위** | 원화(KRW) 단독 표시 | MVP 범위 |
+| **Route Handler** | RSC와 함께 구현 (`/api/invoice/[slug]`) | 외부 연동 가능성 대비 |
