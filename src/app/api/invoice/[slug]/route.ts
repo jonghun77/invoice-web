@@ -7,7 +7,6 @@ export async function GET(
 ) {
   const { slug } = await params
 
-  // TODO: Phase 1 완료 후 실제 노션 조회로 동작
   const invoice = await getInvoiceBySlug(slug)
 
   if (!invoice) {

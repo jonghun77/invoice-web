@@ -1,11 +1,8 @@
 import 'server-only'
-import { isFullPage, isFullBlock } from '@notionhq/client'
-import type {
-  PageObjectResponse,
-  TableBlockObjectResponse,
-  TableRowBlockObjectResponse,
-} from '@notionhq/client/build/src/api-endpoints'
-import { notion, NOTION_DATABASE_ID } from '@/lib/notion'
+import { cache } from 'react'
+import { isFullPage } from '@notionhq/client'
+import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
+import { notion, NOTION_ITEMS_DATABASE_ID } from '@/lib/notion'
 import type { Invoice, Issuer, Client, LineItem } from '@/types/invoice'
 
 // ─── Notion 속성 추출 헬퍼 ──────────────────────────────────────────────────
@@ -34,10 +31,10 @@ function readNumber(page: PageObjectResponse, prop: string): number {
   return p.number ?? 0
 }
 
-function readCheckbox(page: PageObjectResponse, prop: string): boolean {
+function readStatus(page: PageObjectResponse, prop: string): string {
   const p = page.properties[prop]
-  if (!p || p.type !== 'checkbox') return false
-  return p.checkbox
+  if (!p || p.type !== 'status') return ''
+  return p.status?.name ?? ''
 }
 
 function readDate(page: PageObjectResponse, prop: string): string {
@@ -46,68 +43,52 @@ function readDate(page: PageObjectResponse, prop: string): string {
   return p.date?.start ?? ''
 }
 
-// ─── 페이지 본문 테이블 블록 → LineItem[] ───────────────────────────────────
-// 노션 페이지 본문에 아래 형식의 테이블을 작성하세요:
-// | 품목명 | 수량 | 단가 | 금액 |
-// |--------|------|------|------|
-// | 예시   |  1   | 1000 | 1000 |
+// ─── Items DB → LineItem[] ───────────────────────────────────────────────────
+// Items DB는 Invoices DB와 관계형으로 연결된 별도 테이블입니다.
+// 'Invoices' 관계 속성으로 해당 견적서 페이지 ID가 포함된 항목만 가져옵니다.
+//
+// Items DB 속성 매핑:
+//   항목명 (title)  → name
+//   수량   (number) → quantity
+//   단가   (number) → unitPrice
+//   금액   (number) → amount
 
-async function getLineItems(pageId: string): Promise<LineItem[]> {
-  // 1단계: 페이지 자식 블록에서 table 블록 찾기
-  const blocksRes = await notion.blocks.children.list({
-    block_id: pageId,
-    page_size: 100,
+async function getLineItems(invoicePageId: string): Promise<LineItem[]> {
+  const res = await notion.dataSources.query({
+    data_source_id: NOTION_ITEMS_DATABASE_ID,
+    filter: {
+      property: 'Invoices',
+      relation: { contains: invoicePageId },
+    },
   })
 
-  const tableBlock = blocksRes.results
-    .filter(isFullBlock)
-    .find((b): b is TableBlockObjectResponse => b.type === 'table')
-
-  if (!tableBlock) return []
-
-  // 2단계: table 블록의 자식(table_row)들 가져오기
-  const rowsRes = await notion.blocks.children.list({
-    block_id: tableBlock.id,
-    page_size: 100,
-  })
-
-  const rows = rowsRes.results
-    .filter(isFullBlock)
-    .filter((b): b is TableRowBlockObjectResponse => b.type === 'table_row')
-
-  // has_column_header = true이면 첫 번째 행은 헤더이므로 건너뜀
-  const dataRows = tableBlock.table.has_column_header ? rows.slice(1) : rows
-
-  return dataRows
-    .map((row, index) => {
-      const cells = row.table_row.cells
-
-      const name = cells[0]?.[0]?.plain_text ?? ''
+  return res.results
+    .filter(isFullPage)
+    .map(page => {
+      const name = readTitle(page, '항목명')
       if (!name) return null
-
-      // 쉼표 제거 후 숫자 파싱 (예: "1,000" → 1000)
-      const quantity = Number(
-        cells[1]?.[0]?.plain_text?.replace(/,/g, '') ?? '0'
-      )
-      const unitPrice = Number(
-        cells[2]?.[0]?.plain_text?.replace(/,/g, '') ?? '0'
-      )
-      const parsedAmount = Number(
-        cells[3]?.[0]?.plain_text?.replace(/,/g, '') ?? '0'
-      )
-
-      return {
-        id: `item-${index + 1}`,
-        name,
-        quantity,
-        unitPrice,
-        amount: parsedAmount || quantity * unitPrice,
-      }
+      const quantity = readNumber(page, '수량')
+      const unitPrice = readNumber(page, '단가')
+      const amount = readNumber(page, '금액') || quantity * unitPrice
+      return { id: page.id, name, quantity, unitPrice, amount }
     })
     .filter((item): item is LineItem => item !== null)
 }
 
 // ─── 노션 페이지 → Invoice 타입 변환 ────────────────────────────────────────
+//
+// Invoices DB 속성 매핑:
+//   견적서 번호 (title)     → invoiceNumber
+//   발행일      (date)      → issuedAt
+//   유효기간    (date)      → dueDate
+//   클라이언트명 (rich_text) → client.name
+//   IsPublic    (checkbox)  → isPublic
+//
+// 아래 속성은 노션 DB에 직접 추가 필요 (영문 이름 권장):
+//   IssuerName, IssuerContact, IssuerEmail, ClientContact, TaxRate, Note
+// 속성이 없으면 빈 값/기본값으로 처리됩니다.
+// slug는 노션 페이지 ID를 자동으로 사용합니다 (별도 Slug 속성 불필요).
+// isPublic은 기존 '상태' 필드로 판단합니다: 상태 === '승인' → 공개.
 
 function mapPageToInvoice(
   page: PageObjectResponse,
@@ -124,18 +105,16 @@ function mapPageToInvoice(
   }
 
   const client: Client = {
-    name: readText(page, 'ClientName'),
+    name: readText(page, '클라이언트명'),
     contact: readText(page, 'ClientContact') || undefined,
   }
 
   return {
     id: page.id,
-    // InvoiceNumber는 title 또는 rich_text 두 가지 경우를 모두 처리
-    invoiceNumber:
-      readTitle(page, 'InvoiceNumber') || readText(page, 'InvoiceNumber'),
-    slug: readText(page, 'Slug'),
-    issuedAt: readDate(page, 'IssuedAt'),
-    dueDate: readDate(page, 'DueDate'),
+    invoiceNumber: readTitle(page, '견적서 번호'),
+    slug: page.id,
+    issuedAt: readDate(page, '발행일'),
+    dueDate: readDate(page, '유효기간'),
     issuer,
     client,
     items,
@@ -144,39 +123,29 @@ function mapPageToInvoice(
     tax,
     total: subtotal + tax,
     note: readText(page, 'Note') || undefined,
-    isPublic: readCheckbox(page, 'IsPublic'),
+    isPublic: readStatus(page, '상태') === '승인',
   }
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * slug(UUID)로 노션 DB에서 공개 견적서를 조회합니다.
- * 존재하지 않거나 isPublic = false이면 null을 반환합니다.
+ * 노션 페이지 ID로 공개 견적서를 조회합니다.
+ * IsPublic = false이거나 페이지가 존재하지 않으면 null을 반환합니다.
+ * slug = 노션 페이지 ID (자동 UUID, 별도 Slug 속성 불필요)
  */
-export async function getInvoiceBySlug(slug: string): Promise<Invoice | null> {
-  try {
-    // v5.x: databases.query → dataSources.query (data_source_id 사용)
-    const res = await notion.dataSources.query({
-      data_source_id: NOTION_DATABASE_ID,
-      page_size: 1,
-      filter: {
-        and: [
-          { property: 'Slug', rich_text: { equals: slug } },
-          { property: 'IsPublic', checkbox: { equals: true } },
-        ],
-      },
-    })
+export const getInvoiceBySlug = cache(
+  async (pageId: string): Promise<Invoice | null> => {
+    try {
+      const page = await notion.pages.retrieve({ page_id: pageId })
+      if (!isFullPage(page)) return null
+      if (readStatus(page, '상태') !== '승인') return null
 
-    if (res.results.length === 0) return null
-
-    const page = res.results[0]
-    if (!isFullPage(page)) return null
-
-    const items = await getLineItems(page.id)
-    return mapPageToInvoice(page, items)
-  } catch (err) {
-    console.error('[getInvoiceBySlug] Notion API 오류:', err)
-    return null
+      const items = await getLineItems(page.id)
+      return mapPageToInvoice(page, items)
+    } catch (err) {
+      console.error('[getInvoiceBySlug] Notion API 오류:', err)
+      return null
+    }
   }
-}
+)
