@@ -33,3 +33,13 @@ export interface Invoice {
   readonly note?: string
   readonly isPublic: boolean
 }
+
+export interface InvoiceSummary {
+  readonly slug: string
+  readonly invoiceNumber: string
+  readonly clientName: string
+  readonly issuedAt: string // ISO 8601
+  readonly status: string // "승인" | "대기" | "거절"
+  readonly total: number
+  readonly isPublic: boolean
+}
