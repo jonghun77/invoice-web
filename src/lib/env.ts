@@ -13,7 +13,6 @@ const envSchema = z.object({
       1,
       'NOTION_API_KEY가 설정되지 않았습니다. .env.local 파일에 Notion Integration Secret을 입력하세요.'
     ),
-  NOTION_DATABASE_ID: z.string().optional(),
   NOTION_ITEMS_DATABASE_ID: z
     .string()
     .min(
@@ -27,7 +26,6 @@ export const env = envSchema.parse({
   VERCEL_URL: process.env.VERCEL_URL,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NOTION_API_KEY: process.env.NOTION_API_KEY,
-  NOTION_DATABASE_ID: process.env.NOTION_DATABASE_ID,
   NOTION_ITEMS_DATABASE_ID: process.env.NOTION_ITEMS_DATABASE_ID,
 })
 

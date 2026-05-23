@@ -7,5 +7,4 @@ export const notion = new Client({
   auth: env.NOTION_API_KEY,
 })
 
-export const NOTION_DATABASE_ID = env.NOTION_DATABASE_ID ?? ''
 export const NOTION_ITEMS_DATABASE_ID = env.NOTION_ITEMS_DATABASE_ID
