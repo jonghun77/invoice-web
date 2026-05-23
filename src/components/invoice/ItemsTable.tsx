@@ -1,7 +1,7 @@
 import type { LineItem } from '@/types/invoice'
 import { formatKRW } from '@/lib/format'
 
-export default function ItemsTable({ items }: { items: LineItem[] }) {
+export default function ItemsTable({ items }: { items: readonly LineItem[] }) {
   return (
     <table className="w-full text-sm">
       <thead>

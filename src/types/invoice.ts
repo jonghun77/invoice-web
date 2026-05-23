@@ -1,35 +1,35 @@
 export interface Issuer {
-  name: string
-  contact: string
-  email: string
+  readonly name: string
+  readonly contact: string
+  readonly email: string
 }
 
 export interface Client {
-  name: string
-  contact?: string
+  readonly name: string
+  readonly contact?: string
 }
 
 export interface LineItem {
-  id: string
-  name: string
-  quantity: number
-  unitPrice: number
-  amount: number
+  readonly id: string
+  readonly name: string
+  readonly quantity: number
+  readonly unitPrice: number
+  readonly amount: number
 }
 
 export interface Invoice {
-  id: string
-  slug: string
-  invoiceNumber: string
-  issuedAt: string // ISO 8601
-  dueDate: string // ISO 8601
-  issuer: Issuer
-  client: Client
-  items: LineItem[]
-  subtotal: number // 공급가액
-  taxRate: number // 예: 0.1 = 10%
-  tax: number // subtotal * taxRate
-  total: number // subtotal + tax
-  note?: string
-  isPublic: boolean
+  readonly id: string
+  readonly slug: string
+  readonly invoiceNumber: string
+  readonly issuedAt: string // ISO 8601
+  readonly dueDate: string // ISO 8601
+  readonly issuer: Issuer
+  readonly client: Client
+  readonly items: readonly LineItem[]
+  readonly subtotal: number // 공급가액
+  readonly taxRate: number // 예: 0.1 = 10%
+  readonly tax: number // subtotal * taxRate
+  readonly total: number // subtotal + tax
+  readonly note?: string
+  readonly isPublic: boolean
 }
