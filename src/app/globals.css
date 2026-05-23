@@ -132,4 +132,10 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* 품목 테이블 행이 페이지 경계에서 잘리지 않도록 */
+  table,
+  tr {
+    break-inside: avoid;
+  }
 }
