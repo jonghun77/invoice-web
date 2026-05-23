@@ -1,3 +1,4 @@
+import 'server-only'
 import { z } from 'zod'
 
 const envSchema = z.object({
@@ -6,8 +7,19 @@ const envSchema = z.object({
     .default('development'),
   VERCEL_URL: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-  NOTION_API_KEY: z.string().optional(),
+  NOTION_API_KEY: z
+    .string()
+    .min(
+      1,
+      'NOTION_API_KEY가 설정되지 않았습니다. .env.local 파일에 Notion Integration Secret을 입력하세요.'
+    ),
   NOTION_DATABASE_ID: z.string().optional(),
+  NOTION_ITEMS_DATABASE_ID: z
+    .string()
+    .min(
+      1,
+      'NOTION_ITEMS_DATABASE_ID가 설정되지 않았습니다. .env.local 파일에 Items 데이터베이스 ID를 입력하세요.'
+    ),
 })
 
 export const env = envSchema.parse({
@@ -16,6 +28,7 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NOTION_API_KEY: process.env.NOTION_API_KEY,
   NOTION_DATABASE_ID: process.env.NOTION_DATABASE_ID,
+  NOTION_ITEMS_DATABASE_ID: process.env.NOTION_ITEMS_DATABASE_ID,
 })
 
 export type Env = z.infer<typeof envSchema>
