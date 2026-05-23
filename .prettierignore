@@ -43,3 +43,7 @@ next-env.d.ts
 # Claude Code 설정 및 프로젝트 문서
 .claude/
 docs/
+
+# 개발 도구 생성 데이터
+.playwright-mcp/
+shrimp_data/
