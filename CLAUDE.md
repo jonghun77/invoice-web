@@ -70,6 +70,9 @@ src/components/invoice/InvoiceView.tsx
 **Notion SDK v5의 API 차이**  
 `databases.query` 대신 `notion.dataSources.query({ data_source_id })` 를 사용한다. v5 이전 코드로 되돌리지 말 것.
 
+**⚠️ data_source_id ≠ database_id (URL의 UUID)**  
+`dataSources.query`에 넘기는 `data_source_id`는 Notion URL에서 복사한 데이터베이스 페이지 ID와 **다른 값**이다. 실제 `data_source_id`는 `GET /v1/databases/{database_id}` 응답의 `data_sources[0].id`에서 가져와야 한다. 이 변환은 `src/lib/notion.ts`의 `getDataSourceId(databaseId)` 함수가 담당하며, 결과를 모듈 수준 캐시에 저장해 중복 API 호출을 방지한다. 환경 변수에는 기존대로 데이터베이스 페이지 ID를 넣으면 된다.
+
 **InvoiceNumber 이중 처리**  
 노션 DB에서 `InvoiceNumber`가 `title` 타입일 수도, `rich_text` 타입일 수도 있어 `readTitle || readText`로 둘 다 시도한다.
 

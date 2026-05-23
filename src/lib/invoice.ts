@@ -2,7 +2,7 @@ import 'server-only'
 import { cache } from 'react'
 import { isFullPage } from '@notionhq/client'
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
-import { notion, NOTION_ITEMS_DATABASE_ID } from '@/lib/notion'
+import { notion, NOTION_ITEMS_DATABASE_ID, getDataSourceId } from '@/lib/notion'
 import type { Invoice, Issuer, Client, LineItem } from '@/types/invoice'
 
 // ─── Notion 속성 추출 헬퍼 ──────────────────────────────────────────────────
@@ -54,8 +54,9 @@ function readDate(page: PageObjectResponse, prop: string): string {
 //   금액   (number) → amount
 
 async function getLineItems(invoicePageId: string): Promise<LineItem[]> {
+  const dataSourceId = await getDataSourceId(NOTION_ITEMS_DATABASE_ID)
   const res = await notion.dataSources.query({
-    data_source_id: NOTION_ITEMS_DATABASE_ID,
+    data_source_id: dataSourceId,
     filter: {
       property: 'Invoices',
       relation: { contains: invoicePageId },
